@@ -1,0 +1,126 @@
+<?xml version="1.0"?>
+<project name="ZooKeeper.NET" default="all" basedir=".">
+<!--
+   Licensed to the Apache Software Foundation (ASF) under one or more
+   contributor license agreements.  See the NOTICE file distributed with
+   this work for additional information regarding copyright ownership.
+   The ASF licenses this file to You under the Apache License, Version 2.0
+   (the "License"); you may not use this file except in compliance with
+   the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+-->
+	<description>Builds NET version of ZooKeeper using IKVM</description>
+	<!-- Build properties. Change to rename, etc. -->
+	<property name="zk_config" value="Apache.ZooKeeper.cfg"/>
+	<property name="exe_name" value="Apache.ZooKeeper.exe"/>
+	<property name="dll_name" value="Apache.ZooKeeper.dll"/>
+	<property name="build_dir" value="build"/>
+	<property name="build.os" value="${operating-system::to-string(environment::get-operating-system())}"/>
+	<!-- Configured in target 'all' -->
+	<property name="tools.ikvm.home" value=""/>
+	<property name="tools.ikvm.bin" value=""/>
+	<property name="tools.ikvmc" value=""/>
+	<property name="tools.zk.home" value=""/>	
+	<target name="all" depends="validate_setup, setup">		
+		<call target="ikvm_dll"/>
+		<call target="ikvm_exe"/>
+	</target>
+	<target name="validate_setup">
+		<if test="${not string::contains(build.os, 'Windows')}">
+			<call target="help"/>
+			<fail message="Must run on Windows."/>
+		</if>
+		<if test="${not environment::variable-exists('IKVM_HOME') or not environment::variable-exists('ZK_HOME')}">
+			<call target="help"/>
+			<fail message="Incorrect environment setup."/>
+		</if>
+	</target>
+	<target name="setup">
+		<!-- Setup real properties. This is done so a meaningful error can be given if the properties are incorrect -->
+		<property name="tools.ikvm.home" value="${environment::get-variable('IKVM_HOME')}"/>
+		<property name="tools.ikvm.bin" value="${tools.ikvm.home}/bin"/>
+		<!-- This is why it only works on Windows. Need to setup Mono path for Linux builds -->
+		<property name="tools.ikvmc" value="${path::get-full-path(path::combine(tools.ikvm.bin,'ikvmc.exe'))}"/>
+		<property name="tools.zk.home" value="${environment::get-variable('ZK_HOME')}"/>
+		<mkdir dir="build" failonerror="false"/>
+		<copy file="${tools.ikvm.bin}/IKVM.OpenJDK.Core.dll" todir="${build_dir}"/>
+		<copy file="${tools.ikvm.bin}/IKVM.OpenJDK.Remoting.dll" todir="${build_dir}"/>
+		<copy file="${tools.ikvm.bin}/IKVM.OpenJDK.Tools.dll" todir="${build_dir}"/>
+		<copy file="${tools.ikvm.bin}/IKVM.OpenJDK.Util.dll" todir="${build_dir}"/>
+		<copy file="${tools.ikvm.bin}/IKVM.OpenJDK.Management.dll" todir="${build_dir}"/>
+		<copy file="${tools.ikvm.bin}/IKVM.OpenJDK.Text.dll" todir="${build_dir}"/>
+		<copy file="${tools.ikvm.bin}/IKVM.OpenJDK.Beans.dll" todir="${build_dir}"/>
+		<copy file="${tools.ikvm.bin}/IKVM.OpenJDK.SwingAWT.dll" todir="${build_dir}"/>
+		<copy file="${tools.ikvm.bin}/IKVM.OpenJDK.Security.dll" todir="${build_dir}"/>
+		<copy file="${tools.ikvm.bin}/IKVM.Runtime.dll" todir="${build_dir}"/>		
+		<copy file="log4j.properties" todir="${build_dir}"/>
+		<copy file="App.config" tofile="${build_dir}/${exe_name}.config"/>
+		<copy file="Apache.ZooKeeper.cfg" todir="${build_dir}"/>
+	</target>
+	<target name="clean">
+		<delete file="${build_dir}/IKVM.OpenJDK.Core.dll"/>
+		<delete file="${build_dir}/IKVM.OpenJDK.Remoting.dll"/>
+		<delete file="${build_dir}/IKVM.OpenJDK.Tools.dll"/>
+		<delete file="${build_dir}/IKVM.OpenJDK.Util.dll"/>
+		<delete file="${build_dir}/IKVM.OpenJDK.Management.dll"/>
+		<delete file="${build_dir}/IKVM.OpenJDK.Text.dll"/>
+		<delete file="${build_dir}/IKVM.OpenJDK.Beans.dll"/>
+		<delete file="${build_dir}/IKVM.OpenJDK.SwingAWT.dll"/>
+		<delete file="${build_dir}/IKVM.OpenJDK.Security.dll"/>
+		<delete file="${build_dir}/IKVM.Runtime.dll"/>
+		<delete file="${build_dir}/log4j.properties"/>
+		<delete file="${build_dir}/${exe_name}.config"/>
+		<delete file="${build_dir}/${exe_name}"/>
+		<delete file="${build_dir}/${dll_name}"/>
+	</target>
+	<target name="ikvm_exe">
+		<exec program="${tools.ikvmc}">
+			<arg value="-out:${build_dir}/${exe_name}"/>
+			<arg value="-target:exe"/>
+			<arg value="-noglobbing"/>
+			<arg value="-nowarn:0100"/>
+			<arg value="-nowarn:0111"/>
+			<arg value="-nowarn:0105"/>			
+			<arg value="-reference:${tools.ikvm.bin}/IKVM.OpenJDK.Core.dll"/>
+			<arg value="-reference:${tools.ikvm.bin}/IKVM.OpenJDK.Remoting.dll"/>
+			<arg value="-reference:${tools.ikvm.bin}/IKVM.OpenJDK.Tools.dll"/>
+			<arg value="-main:org.apache.zookeeper.server.quorum.QuorumPeerMain"/>
+			<arg value="${tools.zk.home}/build/zookeeper-3.4.0.jar"/>
+			<arg value="${tools.zk.home}/build/lib/jline-0.9.94.jar"/>
+			<arg value="${tools.zk.home}/build/lib/log4j-1.2.15.jar"/>
+			<arg value="${tools.zk.home}/build/lib/slf4j-api-1.6.1.jar"/>
+			<arg value="${tools.zk.home}/build/lib/slf4j-log4j12-1.6.1.jar"/>
+		</exec>
+	</target>
+	<target name="ikvm_dll">
+		<exec program="${tools.ikvmc}">
+			<arg value="-out:${build_dir}/${dll_name}"/>
+			<arg value="-target:library"/>
+			<arg value="-noglobbing"/>
+			<arg value="-nowarn:0100"/>
+			<arg value="-nowarn:0111"/>
+			<arg value="-nowarn:0105"/>			
+			<arg value="-reference:${tools.ikvm.bin}/IKVM.OpenJDK.Core.dll"/>
+			<arg value="-reference:${tools.ikvm.bin}/IKVM.OpenJDK.Remoting.dll"/>
+			<arg value="-reference:${tools.ikvm.bin}/IKVM.OpenJDK.Tools.dll"/>
+			<arg value="${tools.zk.home}/build/zookeeper-3.4.0.jar"/>
+			<arg value="${tools.zk.home}/build/lib/jline-0.9.94.jar"/>
+			<arg value="${tools.zk.home}/build/lib/log4j-1.2.15.jar"/>
+			<arg value="${tools.zk.home}/build/lib/slf4j-api-1.6.1.jar"/>
+			<arg value="${tools.zk.home}/build/lib/slf4j-log4j12-1.6.1.jar"/>
+		</exec>		
+	</target>	
+	<target name="help">
+		<echo message="This build file is only support on Windows, however the produced Assembly works with Mono."/>	
+		<echo message="Environment variables required:"/>
+		<echo message="    IKVM_HOME - Installation root for IKVM where version > 7.0.4358."/>
+		<echo message="    ZK_HOME - An already built version of ZooKeeper from repository. ZK_HOME/build must exist."/>
+	</target>
+</project>
